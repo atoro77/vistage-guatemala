@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vistage Guatemala — Prospect Finder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-v">V</span>
+        <div>
+          <div class="logo-title">Vistage Guatemala</div>
+          <div class="logo-sub">Executive Prospect Finder</div>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-view="search">Search</button>
+        <button class="nav-btn" data-view="dashboard">Dashboard</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- SEARCH VIEW -->
+  <main id="view-search" class="view active">
+    <section class="search-panel">
+      <h2>Find Prospects</h2>
+      <p class="hint">Enter search parameters to discover CEOs, GMs, and executives at Guatemalan companies.</p>
+      <form id="search-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Industry *</label>
+            <select id="s-industry" required>
+              <option value="">— Select Industry —</option>
+              <option>Manufacturing & Industry</option>
+              <option>Retail & Consumer Goods</option>
+              <option>Technology & Software</option>
+              <option>Financial Services & Banking</option>
+              <option>Agriculture & Agribusiness</option>
+              <option>Construction & Real Estate</option>
+              <option>Healthcare & Pharma</option>
+              <option>Logistics & Supply Chain</option>
+              <option>Food & Beverage</option>
+              <option>Professional Services</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <select id="s-location">
+              <option value="">All Guatemala</option>
+              <option>Guatemala City</option>
+              <option>Quetzaltenango</option>
+              <option>Escuintla</option>
+              <option>Antigua Guatemala</option>
+              <option>San Marcos</option>
+              <option>Huehuetenango</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Company Size</label>
+            <select id="s-size">
+              <option value="">Any Size</option>
+              <option value="20">20+ employees</option>
+              <option value="50">50+ employees</option>
+              <option value="100">100+ employees</option>
+              <option value="500">500+ employees</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary" id="search-btn">
+          <span id="search-label">Search Prospects</span>
+          <span id="search-spinner" class="spinner hidden"></span>
+        </button>
+      </form>
+      <div id="search-status" class="search-status hidden"></div>
+    </section>
+
+    <section id="results-section" class="hidden">
+      <div class="results-header">
+        <h3 id="results-title">Results</h3>
+      </div>
+      <div id="cards-container" class="cards-grid"></div>
+    </section>
+  </main>
+
+  <!-- DASHBOARD VIEW -->
+  <main id="view-dashboard" class="view">
+    <section class="dashboard-controls">
+      <div class="stats-row" id="stats-row"></div>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>Filter Industry</label>
+          <select id="f-industry">
+            <option value="">All Industries</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Filter Status</label>
+          <select id="f-status">
+            <option value="">All Statuses</option>
+            <option>New</option>
+            <option>Contacted</option>
+            <option>Not a fit</option>
+            <option>Member</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Filter Fit</label>
+          <select id="f-fit">
+            <option value="">All</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Sort By</label>
+          <select id="f-sort">
+            <option value="name">Name</option>
+            <option value="company">Company</option>
+            <option value="industry">Industry</option>
+            <option value="fitScore">Fit Score</option>
+            <option value="addedAt">Date Added</option>
+          </select>
+        </div>
+        <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+        <button class="btn-secondary" style="border-color:#c0392b;color:#c0392b;" onclick="cleanupProspects()">Clean Invalid</button>
+      </div>
+    </section>
+
+    <div id="dashboard-table-wrap">
+      <table id="dashboard-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Title</th>
+            <th>Company</th>
+            <th>Industry</th>
+            <th>Size</th>
+            <th>Fit</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dashboard-tbody"></tbody>
+      </table>
+      <div id="no-prospects" class="empty-state hidden">
+        <p>No prospects yet. Use Search to find executives.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- PROSPECT DETAIL MODAL -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

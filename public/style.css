@@ -48,19 +48,8 @@ header {
 }
 
 .logo { display: flex; align-items: center; gap: 12px; }
-
-.logo-v {
-  width: 40px; height: 40px;
-  background: var(--gold);
-  color: var(--blue);
-  border-radius: 8px;
-  font-size: 1.4rem;
-  font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
-}
-
+.logo-img { height: 72px; width: auto; display: block; filter: brightness(0) invert(1); }
 .logo-title { font-size: 1.1rem; font-weight: 700; }
-.logo-sub { font-size: 0.72rem; opacity: 0.7; letter-spacing: 0.5px; }
 
 nav { display: flex; gap: 4px; }
 
@@ -163,6 +152,8 @@ select:focus, input[type="text"]:focus {
 .btn-enrich:hover { background: var(--gold); color: var(--white); }
 .btn-delete { background: var(--gray-100); color: var(--red); }
 .btn-delete:hover { background: var(--red); color: var(--white); }
+.btn-email { background: var(--gray-100); color: var(--green); }
+.btn-email:hover { background: var(--green); color: var(--white); }
 .btn-view { background: var(--blue); color: var(--white); }
 .btn-view:hover { background: var(--blue-light); }
 
@@ -258,6 +249,16 @@ select:focus, input[type="text"]:focus {
   display: block;
 }
 .card-source:hover { text-decoration: underline; }
+
+.card-email {
+  font-size: 0.82rem;
+  margin: 0.4rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.card-email a { color: var(--green); text-decoration: none; }
+.card-email a:hover { text-decoration: underline; }
 
 /* ── Dashboard ── */
 .stats-row {
@@ -372,8 +373,82 @@ select:focus, input[type="text"]:focus {
 }
 .modal-close:hover { color: var(--gray-800); }
 
-.modal-name { font-size: 1.4rem; font-weight: 800; color: var(--blue); margin-bottom: 4px; }
-.modal-title { color: var(--gray-600); margin-bottom: 1rem; }
+/* editable modal header */
+.modal-edit-header { margin-bottom: 1rem; }
+
+.modal-name-input {
+  display: block;
+  width: 100%;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--blue);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  margin: 0 -6px 4px;
+  background: transparent;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.modal-name-input:hover { border-color: var(--gray-200); background: var(--gray-50); }
+.modal-name-input:focus { outline: none; border-color: var(--blue-light); background: var(--white); }
+
+.modal-title-row { display: flex; align-items: center; gap: 6px; }
+.modal-sep { color: var(--gray-400); flex-shrink: 0; }
+
+.modal-title-input, .modal-company-input {
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  font-size: 0.95rem;
+  color: var(--gray-600);
+  background: transparent;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.modal-title-input { flex: 1; }
+.modal-company-input { flex: 1.5; }
+.modal-title-input:hover, .modal-company-input:hover { border-color: var(--gray-200); background: var(--gray-50); }
+.modal-title-input:focus, .modal-company-input:focus { outline: none; border-color: var(--blue-light); background: var(--white); }
+
+/* editable fields grid */
+.modal-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 1rem 0 0.5rem;
+}
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
+.modal-field-full { grid-column: 1 / -1; }
+.modal-field label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-600);
+}
+.modal-field input, .modal-field select {
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+.modal-field input:focus, .modal-field select:focus { outline: none; border-color: var(--blue-light); }
+
+/* saved indicator */
+.modal-saved {
+  display: inline-block;
+  font-size: 0.78rem;
+  color: var(--green);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  transition: opacity 0.3s;
+}
+.modal-saved.hidden { display: none; }
+
 .modal-section { margin-top: 1.2rem; }
 .modal-section h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-600); margin-bottom: 6px; }
 

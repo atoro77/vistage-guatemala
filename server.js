@@ -102,7 +102,8 @@ const NOT_NAMES = new Set([
   'Presidente', 'Manager', 'Executive', 'Officer', 'Chairman', 'Owner',
   'Founder', 'Partner', 'Associate', 'Senior', 'Junior', 'Vice',
   // Geography
-  'Guatemala', 'Ciudad', 'Norte', 'Sur', 'Este', 'Oeste', 'Central',
+  'Guatemala', 'CostaRica', 'Dominicana', 'Dominican', 'Salvadoreño',
+  'Ciudad', 'Norte', 'Sur', 'Este', 'Oeste', 'Central',
   'Nacional', 'Internacional', 'Americas', 'America', 'Latin', 'Global',
   'Regional', 'Local', 'Zona', 'Area', 'Área', 'Region', 'Región',
   // Industries / sectors
@@ -125,6 +126,13 @@ const NOT_NAMES = new Set([
   // Spanish common words mistaken for names
   'Paz', 'Vida', 'Voz', 'Vox', 'Nueva', 'Nuevo', 'Gran', 'Grande',
   'Santo', 'Santa', 'San', 'Los', 'Las', 'Del', 'Una', 'Uno',
+  // Team / people pages
+  'Team', 'Leadership', 'Our', 'Staff', 'Members', 'Authors', 'Authors',
+  'Management', 'Executives', 'Board', 'Equipo', 'Liderazgo', 'Nosotros',
+  // Company / profile words
+  'Hotels', 'Hotel', 'Resorts', 'Resort', 'Perfil', 'Corporativo',
+  'Corporate', 'Profile', 'Company', 'Companies', 'Holdings', 'Holding',
+  'Ventures', 'Venture', 'Enterprises', 'Enterprise', 'Partners',
   // Common non-name words
   'World', 'Report', 'Keynote', 'Annual', 'Forum', 'Summit', 'Conference',
   'Life', 'News', 'Media', 'People', 'Also', 'Viewed', 'LinkedIn',
@@ -132,6 +140,7 @@ const NOT_NAMES = new Set([
   'Solutions', 'Soluciones', 'Systems', 'Sistemas',
   'Digital', 'Data', 'National', 'International', 'Top', 'Best',
   'Latin', 'Latam', 'Inter', 'Expo', 'Open', 'Plus', 'Pro',
+  'Welcome', 'Contact', 'Home', 'Page', 'Site', 'Web',
 ]);
 
 const CONNECTORS = new Set(['de', 'la', 'del', 'los', 'las', 'y', 'van', 'von', 'el', 'al']);
@@ -166,7 +175,7 @@ function extractProspects(results, searchContext) {
     let name = null;
     let execTitle = null;
     let company = null;
-    let linkedinUrl = url.includes('linkedin.com/in/') ? url.split('?')[0] : null;
+    let linkedinUrl = url.includes('linkedin.com/in/') ? normalizeLinkedIn(url.split('?')[0]) : null;
 
     if (url.includes('linkedin.com/in/')) {
       // LinkedIn page title format: "FirstName LastName - Title at Company | LinkedIn"
@@ -175,8 +184,8 @@ function extractProspects(results, searchContext) {
 
       if (dashIdx > 0) {
         name = cleanTitle.slice(0, dashIdx).trim();
-        const rest = cleanTitle.slice(dashIdx + 3).trim();
-        // "Title at/en Company" or "Title en Company"
+        // Strip | separators from the headline before matching "Title at Company"
+        const rest = cleanTitle.slice(dashIdx + 3).split(/\s*[|·]\s*/)[0].trim();
         const atMatch = /^(.+?)\s+(?:at|en|@)\s+(.+)$/i.exec(rest);
         if (atMatch) {
           execTitle = atMatch[1].trim();
@@ -199,9 +208,9 @@ function extractProspects(results, searchContext) {
       if (!tm) continue;
       execTitle = tm[1];
 
-      // Grab any LinkedIn URL embedded in the content
+      // Grab any personal LinkedIn URL embedded in the content
       const liMatch = /https?:\/\/(?:www\.|[a-z]{2}\.)?linkedin\.com\/in\/[a-z0-9_-]+/i.exec(content);
-      if (liMatch) linkedinUrl = liMatch[0].split('?')[0];
+      if (liMatch) linkedinUrl = normalizeLinkedIn(liMatch[0].split('?')[0]);
 
       // Only accept a name if it appears directly before an exec title separated by a dash/pipe
       // e.g. "Juan Pérez - CEO at Empresa" → "Juan Pérez"
@@ -218,7 +227,11 @@ function extractProspects(results, searchContext) {
 
     if (!isValidName(name) || !execTitle) continue;
 
-    const key = `${name.toLowerCase()}-${execTitle.toLowerCase()}`;
+    // Clean up title: take only the primary segment before | or · separators
+    execTitle = execTitle.split(/\s*[|·]\s*/)[0].trim();
+
+    // Dedup within this search batch by name
+    const key = name.toLowerCase().trim();
     if (seen.has(key)) continue;
     seen.add(key);
 
@@ -255,6 +268,12 @@ function extractProspects(results, searchContext) {
   }
 
   return prospects;
+}
+
+function normalizeLinkedIn(url) {
+  if (!url) return null;
+  if (url.includes('linkedin.com/company/')) return null; // company page, not a personal profile
+  return url.replace(/^https?:\/\/(?:www\.|[a-z]{2}\.)?linkedin\.com/, 'https://www.linkedin.com');
 }
 
 function extractSizeSignal(text) {
@@ -295,18 +314,41 @@ function buildQueries(industry, location, companySize) {
   const t2 = terms[1] || terms[0];
 
   const queries = [
-    `site:linkedin.com/in "${t1}" Guatemala "Gerente General" OR CEO`,
-    `"Gerente General" OR "Director General" ${t1} Guatemala empresa`,
-    `CEO OR Presidente ${t2} Guatemala empresa ejecutivo`,
-    `"Managing Director" OR "Country Manager" ${t1} Guatemala`,
-    `directivo ejecutivo ${t1} Guatemala liderazgo empresarial`,
+    `site:linkedin.com/in "${t1}" "${loc}" "Gerente General" OR CEO`,
+    `"Gerente General" OR "Director General" ${t1} "${loc}" empresa`,
+    `CEO OR Presidente ${t2} "${loc}" empresa ejecutivo`,
+    `"Managing Director" OR "Country Manager" ${t1} "${loc}"`,
+    `directivo ejecutivo ${t1} "${loc}" liderazgo empresarial`,
   ];
 
-  if (loc !== 'Guatemala') {
-    queries[4] = `CEO OR "Gerente General" ${t1} ${loc} Guatemala`;
-  }
-
   return queries.slice(0, 5);
+}
+
+// ── Domain helpers for email finding ──────────────────────────────────────
+
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+const JUNK_DOMAINS = new Set([
+  'linkedin.com', 'facebook.com', 'twitter.com', 'instagram.com',
+  'youtube.com', 'wikipedia.org', 'glassdoor.com', 'indeed.com',
+  'bloomberg.com', 'reuters.com', 'forbes.com',
+]);
+
+async function findCompanyDomain(company, country) {
+  const results = await tavilySearch(`"${company}" sitio web oficial ${country}`, 5);
+  for (const r of results) {
+    const domain = extractDomain(r.url);
+    if (domain && !JUNK_DOMAINS.has(domain) && !domain.endsWith('.gov') && !domain.endsWith('.gov.gt')) {
+      return domain;
+    }
+  }
+  return null;
 }
 
 // ── Persistent storage helpers ─────────────────────────────────────────────
@@ -326,8 +368,8 @@ async function saveProspects(prospects) {
 
 async function mergeProspects(newOnes) {
   const existing = await loadProspects();
-  const existingKeys = new Set(existing.map(p => `${p.name}-${p.title}`.toLowerCase()));
-  const added = newOnes.filter(p => !existingKeys.has(`${p.name}-${p.title}`.toLowerCase()));
+  const existingKeys = new Set(existing.map(p => p.name.toLowerCase().trim()));
+  const added = newOnes.filter(p => !existingKeys.has(p.name.toLowerCase().trim()));
   const merged = [...existing, ...added];
   await saveProspects(merged);
   return { added: added.length, total: merged.length, prospects: added };
@@ -385,20 +427,96 @@ app.patch('/api/prospects/:id', async (req, res) => {
   res.json(prospects[idx]);
 });
 
+// Bulk LinkedIn finder — searches LinkedIn for every prospect, corrects name from page title
+app.post('/api/bulk-linkedin', async (req, res) => {
+  const prospects = await loadProspects();
+  let updated = 0;
+  let corrected = 0;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  for (let i = 0; i < prospects.length; i++) {
+    const p = prospects[i];
+    try {
+      const country = p.searchContext?.location || 'Guatemala';
+      const query = `site:linkedin.com/in "${p.name}" "${country}"`;
+      const results = await tavilySearch(query, 3);
+
+      const liResult = results.find(r => r.url.includes('linkedin.com/in/'));
+      if (!liResult) continue;
+
+      const liUrl = liResult.url.split('?')[0];
+
+      // Parse correct name from LinkedIn page title: "FirstName LastName - Title | LinkedIn"
+      const cleanTitle = (liResult.title || '').replace(/\s*\|\s*LinkedIn\s*$/i, '').trim();
+      const dashIdx = cleanTitle.indexOf(' - ');
+      const correctName = dashIdx > 0 ? cleanTitle.slice(0, dashIdx).trim() : null;
+
+      // Also extract title and company if missing
+      let correctTitle = p.title;
+      let correctCompany = p.company;
+      if (dashIdx > 0) {
+        const rest = cleanTitle.slice(dashIdx + 3).trim();
+        const atMatch = /^(.+?)\s+(?:at|en|@)\s+(.+)$/i.exec(rest);
+        if (atMatch) {
+          if (!p.title || !EXEC_TITLE_RE.test(p.title)) correctTitle = atMatch[1].trim();
+          if (!p.company || p.company === 'Unknown') correctCompany = atMatch[2].trim();
+        }
+      }
+
+      let changed = false;
+      if (!p.linkedinUrl && liUrl) { prospects[i].linkedinUrl = liUrl; changed = true; updated++; }
+      if (correctName && isValidName(correctName) && correctName !== p.name) {
+        prospects[i].name = correctName; changed = true; corrected++;
+      }
+      if (correctTitle !== p.title) prospects[i].title = correctTitle;
+      if (correctCompany !== p.company) prospects[i].company = correctCompany;
+
+    } catch (e) {
+      console.error(`LinkedIn search failed for ${p.name}:`, e.message);
+    }
+
+    // Respect Tavily rate limits
+    await delay(300);
+  }
+
+  await saveProspects(prospects);
+  res.json({ success: true, total: prospects.length, updated, corrected });
+});
+
 // Clean invalid prospects
 app.post('/api/cleanup', async (req, res) => {
   const prospects = await loadProspects();
   const before = prospects.length;
+
+  // Step 1: fix bad LinkedIn URLs and messy titles on all entries
+  for (const p of prospects) {
+    if (p.linkedinUrl) p.linkedinUrl = normalizeLinkedIn(p.linkedinUrl);
+    if (p.title) p.title = p.title.split(/\s*[|·]\s*/)[0].trim();
+  }
+
+  // Step 2: remove entries with invalid names or non-exec titles
   const clean = prospects.filter(p => {
     if (!p.name || !p.title) return false;
-    // Must pass name validation
     if (!isValidName(p.name)) return false;
-    // Must have a real exec title
     if (!EXEC_TITLE_RE.test(p.title)) return false;
     return true;
   });
-  await saveProspects(clean);
-  res.json({ before, after: clean.length, removed: before - clean.length });
+
+  // Step 3: deduplicate by name — keep the entry with the most complete data
+  const nameMap = new Map();
+  for (const p of clean) {
+    const key = p.name.toLowerCase().trim();
+    if (!nameMap.has(key)) { nameMap.set(key, p); continue; }
+    const cur = nameMap.get(key);
+    const score = x =>
+      (x.linkedinUrl ? 4 : 0) + (x.email ? 2 : 0) +
+      (x.fitScore === 'High' ? 1 : x.fitScore === 'Medium' ? 0.5 : 0);
+    if (score(p) > score(cur)) nameMap.set(key, p);
+  }
+  const deduped = [...nameMap.values()];
+
+  await saveProspects(deduped);
+  res.json({ before, after: deduped.length, removed: before - deduped.length });
 });
 
 // Delete a prospect
@@ -418,15 +536,16 @@ app.post('/api/prospects/:id/enrich', async (req, res) => {
   const prospect = prospects[idx];
 
   try {
+    const country = prospect.searchContext?.location || 'Guatemala';
     const enrichQueries = [
-      `"${prospect.name}" ${prospect.company} Guatemala noticias`,
-      `"${prospect.name}" entrevista OR interview CEO Guatemala`,
-      `${prospect.company} Guatemala empresa website`,
+      `"${prospect.name}" ${prospect.company} "${country}" noticias`,
+      `"${prospect.name}" entrevista OR interview CEO "${country}"`,
+      `${prospect.company} "${country}" empresa website`,
     ];
 
     // If no LinkedIn URL yet, add a targeted search for it
     if (!prospect.linkedinUrl) {
-      enrichQueries.push(`site:linkedin.com/in "${prospect.name}" Guatemala`);
+      enrichQueries.push(`site:linkedin.com/in "${prospect.name}" "${country}"`);
     }
 
     const enrichResults = [];
@@ -470,14 +589,63 @@ app.post('/api/prospects/:id/enrich', async (req, res) => {
   }
 });
 
+// Find email via Hunter.io
+app.post('/api/prospects/:id/find-email', async (req, res) => {
+  if (!process.env.HUNTER_API_KEY) return res.status(500).json({ error: 'HUNTER_API_KEY not configured' });
+
+  const prospects = await loadProspects();
+  const idx = prospects.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+
+  const prospect = prospects[idx];
+  const country = prospect.searchContext?.location || 'Guatemala';
+
+  // Prefer non-LinkedIn source URL for domain; fall back to Tavily search
+  let domain = null;
+  if (prospect.sourceUrl && !prospect.sourceUrl.includes('linkedin.com')) {
+    domain = extractDomain(prospect.sourceUrl);
+    if (domain && JUNK_DOMAINS.has(domain)) domain = null;
+  }
+  if (!domain && prospect.company && prospect.company !== 'Unknown') {
+    try { domain = await findCompanyDomain(prospect.company, country); } catch { /* skip */ }
+  }
+  if (!domain) return res.status(422).json({ error: `Could not determine company domain for "${prospect.company}"` });
+
+  const nameParts = prospect.name.trim().split(/\s+/);
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ');
+
+  try {
+    const response = await axios.get('https://api.hunter.io/v2/email-finder', {
+      params: { domain, first_name: firstName, last_name: lastName, api_key: process.env.HUNTER_API_KEY },
+      timeout: 12000,
+    });
+
+    const { email, score } = response.data.data;
+    if (!email) return res.status(404).json({ error: 'No email found for this person at ' + domain });
+
+    prospects[idx].email = email;
+    prospects[idx].emailConfidence = score;
+    prospects[idx].emailDomain = domain;
+    prospects[idx].emailFoundAt = new Date().toISOString();
+    await saveProspects(prospects);
+
+    res.json({ success: true, email, confidence: score, domain });
+  } catch (err) {
+    const msg = err.response?.data?.errors?.[0]?.details || err.message;
+    res.status(500).json({ error: msg });
+  }
+});
+
 // Export CSV
 app.get('/api/export/csv', async (req, res) => {
   const prospects = await loadProspects();
-  const headers = ['Name', 'Title', 'Company', 'Industry', 'Company Size', 'Fit Score', 'Status', 'Source URL', 'LinkedIn', 'Notes', 'Added At'];
+  const headers = ['Name', 'Title', 'Company', 'Industry', 'Company Size', 'Fit Score', 'Status', 'Email', 'Email Confidence', 'Source URL', 'LinkedIn', 'Notes', 'Added At'];
   const rows = prospects.map(p => [
     p.name, p.title, p.company, p.industry,
     p.companySizeEstimate || '',
     p.fitScore, p.status,
+    p.email || '', p.emailConfidence != null ? `${p.emailConfidence}%` : '',
     p.sourceUrl || '', p.linkedinUrl || '',
     (p.notes || '').replace(/,/g, ';'),
     p.addedAt,
